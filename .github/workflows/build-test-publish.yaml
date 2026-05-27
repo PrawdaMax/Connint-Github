@@ -1,0 +1,80 @@
+name: Build, Test, and Publish
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    outputs:
+      version_changed: ${{ steps.check_version.outputs.version_changed }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          # If your repo has many commits, 'fetch-depth: 0' ensures we can compare package.json
+          # to its previous version (older commit).
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22.14.0
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Run Tests
+        run: npm run test
+
+      - name: Check if version changed
+        id: check_version
+        run: |
+          # Extract current version from package.json
+          current_version=$(jq -r '.version' package.json)
+          echo "Current version is: $current_version"
+
+          # Try to read the previous version from the previous commit
+          # (If there's no previous commit, e.g. first commit, fall back to empty string)
+          previous_version=$(git show HEAD^:package.json 2>/dev/null | jq -r '.version' || echo "")
+          echo "Previous version was: $previous_version"
+
+          # Compare
+          if [ "$current_version" = "$previous_version" ]; then
+            echo "version_changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "version_changed=true" >> $GITHUB_OUTPUT
+          fi
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    # Only run if the version actually changed
+    if: needs.build-and-test.outputs.version_changed == 'true'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22.14.0
+          # Use npmjs registry
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Install Dependencies
+        run: npm run build
+
+      - name: Publish to npm
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,7 @@
+.github
+coverage
+node_modules
+src
+test
+.gitignore
+jest.config.js
