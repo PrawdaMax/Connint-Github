@@ -41,14 +41,14 @@ pipeline {
     // The post section runs actions based on the build outcome
     post {
         always {
-            echo '🧹 Cleaning up the workspace...'
+            echo 'Cleaning up the workspace...'
             cleanWs() // Deletes the workspace directory to keep the server clean
         }
         success {
-            echo '🎉 Pipeline completed successfully!'
+            echo 'Pipeline completed successfully!'
         }
         failure {
-            echo '❌ Pipeline failed. Please check the console logs above.'
+            echo 'Pipeline failed. Please check the console logs above.'
         }
     }
 }
