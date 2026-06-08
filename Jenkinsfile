@@ -1,80 +1,54 @@
-// Define a global script variable at the very top to safely pass data between stages
-def versionChanged = false
-
 pipeline {
+    // 'agent any' means this pipeline can run on any available Jenkins executor/worker
     agent any
 
-    tools {
-        nodejs 'Node 22.14.0'
-    }
-
-    environment {
-        // Reference your npm token stored securely in Jenkins credentials
-        NPM_TOKEN = credentials('NPM_TOKEN') 
+    // Optional: Set a timeout and timestamps for cleaner logs
+    options {
+        timeout(time: 1, unit: 'HOURS')
+        timestamps()
     }
 
     stages {
-        stage('Build & Test') {
+        stage('Build') {
             steps {
-                echo 'Checking out code...'
-                checkout scm
+                echo 'Starting the Build stage...'
+                // Replace the echos below with your actual build commands
+                // For example: sh 'npm install' or sh './mvnw clean package'
+                sh 'echo "Compiling code and installing dependencies..."'
+            }
+        }
 
-                echo 'Installing Dependencies...'
-                sh 'npm install'
-
-                echo 'Building...'
-                sh 'npm run build'
-
-                echo 'Running Tests...'
-                sh 'npm run test'
-
-                script {
-                    echo 'Checking if version changed...'
-                    
-                    // Extract current version using jq
-                    def currentVersion = sh(script: "jq -r '.version' package.json", returnStdout: true).trim()
-                    echo "Current version is: ${currentVersion}"
-
-                    // Try to read the previous version from the previous Git commit
-                    def previousVersion = ""
-                    try {
-                        previousVersion = sh(script: "git show HEAD^:package.json | jq -r '.version'", returnStdout: true).trim()
-                    } catch (Exception e) {
-                        echo "Could not fetch previous version (might be the first commit)."
-                    }
-                    echo "Previous version was: ${previousVersion}"
-
-                    // Update our Groovy variable directly
-                    if (currentVersion == previousVersion) {
-                        versionChanged = false
-                        echo "Version has not changed."
-                    } else {
-                        versionChanged = true
-                        echo "Version changed! Proceeding to publish."
-                    }
-                }
+        stage('Test') {
+            steps {
+                echo 'Starting the Test stage...'
+                // Replace with your actual testing commands
+                // For example: sh 'npm test' or sh './mvnw test'
+                sh 'echo "Running unit and integration tests..."'
             }
         }
 
         stage('Publish') {
-            // Use the expression syntax to read our Groovy variable safely
-            when {
-                expression { return versionChanged }
-            }
             steps {
-                echo 'Preparing to publish to npm...'
-                
-                sh 'npm install'
-                sh 'npm run build'
-
-                script {
-                    sh """
-                        echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
-                        npm publish
-                        rm -f .npmrc
-                    """
-                }
+                echo 'Starting the Publish stage...'
+                // Replace with your actual deployment/publishing commands
+                // For example: uploading an artifact to Nexus/Artifactory, 
+                // pushing a Docker image, or deploying to a server.
+                sh 'echo "Publishing artifacts / deploying application..."'
             }
+        }
+    }
+
+    // The post section runs actions based on the build outcome
+    post {
+        always {
+            echo '🧹 Cleaning up the workspace...'
+            cleanWs() // Deletes the workspace directory to keep the server clean
+        }
+        success {
+            echo '🎉 Pipeline completed successfully!'
+        }
+        failure {
+            echo '❌ Pipeline failed. Please check the console logs above.'
         }
     }
 }
