@@ -80,8 +80,14 @@ pipeline {
 
     post {
         always {
-            echo 'Cleaning up workspace...'
-            cleanWs()
+            script {
+                try {
+                    echo 'Attempting to clean up workspace...'
+                    cleanWs()
+                } catch (Exception e) {
+                    echo 'Workspace already released by Jenkins agent. Skipping explicit cleanup.'
+                }
+            }
         }
     }
 }
