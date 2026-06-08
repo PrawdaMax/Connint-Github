@@ -2,8 +2,6 @@ pipeline {
     agent any
 
     tools {
-        // Assumes you have Node.js configured in Jenkins (Manage Jenkins -> Tools)
-        // Match the name 'Node 22.14.0' to whatever you named it in your Jenkins global tools setup.
         nodejs 'Node 22.14.0'
     }
 
@@ -37,8 +35,6 @@ pipeline {
                     def currentVersion = sh(script: "jq -r '.version' package.json", returnStdout: true).trim()
                     echo "Current version is: ${currentVersion}"
 
-                    // Try to read the previous version from the previous Git commit
-                    // Using a try/catch in case there is no previous commit (e.g., initial build)
                     def previousVersion = ""
                     try {
                         previousVersion = sh(script: "git show HEAD^:package.json | jq -r '.version'", returnStdout: true).trim()
@@ -60,7 +56,6 @@ pipeline {
         }
 
         stage('Publish') {
-            // This 'when' block acts exactly like the 'if:' conditional in your GitHub Actions yaml
             when {
                 environment name: 'VERSION_CHANGED', value: 'true'
             }
@@ -85,8 +80,10 @@ pipeline {
 
     post {
         always {
-            echo 'Cleaning up workspace...'
-            cleanWs()
+            node {
+                echo 'Cleaning up workspace...'
+                cleanWs()
+            }
         }
     }
 }
