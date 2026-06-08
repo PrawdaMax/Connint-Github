@@ -1,3 +1,6 @@
+// Define a global script variable at the very top to safely pass data between stages
+def versionChanged = false
+
 pipeline {
     agent any
 
@@ -6,8 +9,6 @@ pipeline {
     }
 
     environment {
-        // We will store the version change status here to use across stages
-        VERSION_CHANGED = 'false'
         // Reference your npm token stored securely in Jenkins credentials
         NPM_TOKEN = credentials('NPM_TOKEN') 
     }
@@ -16,7 +17,6 @@ pipeline {
         stage('Build & Test') {
             steps {
                 echo 'Checking out code...'
-                // 'checkout scm' automatically pulls the repo and commit that triggered the build
                 checkout scm
 
                 echo 'Installing Dependencies...'
@@ -35,6 +35,7 @@ pipeline {
                     def currentVersion = sh(script: "jq -r '.version' package.json", returnStdout: true).trim()
                     echo "Current version is: ${currentVersion}"
 
+                    // Try to read the previous version from the previous Git commit
                     def previousVersion = ""
                     try {
                         previousVersion = sh(script: "git show HEAD^:package.json | jq -r '.version'", returnStdout: true).trim()
@@ -43,12 +44,12 @@ pipeline {
                     }
                     echo "Previous version was: ${previousVersion}"
 
-                    // Compare versions and update our environment variable
+                    // Update our Groovy variable directly
                     if (currentVersion == previousVersion) {
-                        VERSION_CHANGED = 'false'
+                        versionChanged = false
                         echo "Version has not changed."
                     } else {
-                        VERSION_CHANGED = 'true'
+                        versionChanged = true
                         echo "Version changed! Proceeding to publish."
                     }
                 }
@@ -56,17 +57,16 @@ pipeline {
         }
 
         stage('Publish') {
+            // Use the expression syntax to read our Groovy variable safely
             when {
-                environment name: 'VERSION_CHANGED', value: 'true'
+                expression { return versionChanged }
             }
             steps {
                 echo 'Preparing to publish to npm...'
                 
-                // Re-running build just like your original workflow yaml did
                 sh 'npm install'
                 sh 'npm run build'
 
-                // Creating a temporary .npmrc file using the token credential for secure authentication
                 script {
                     sh """
                         echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
@@ -80,10 +80,8 @@ pipeline {
 
     post {
         always {
-            node {
-                echo 'Cleaning up workspace...'
-                cleanWs()
-            }
+            echo 'Cleaning up workspace...'
+            cleanWs()
         }
     }
 }
