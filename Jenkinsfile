@@ -77,17 +77,4 @@ pipeline {
             }
         }
     }
-
-    post {
-        always {
-            script {
-                try {
-                    echo 'Attempting to clean up workspace...'
-                    cleanWs()
-                } catch (Exception e) {
-                    echo 'Workspace already released by Jenkins agent. Skipping explicit cleanup.'
-                }
-            }
-        }
-    }
 }
